@@ -11,7 +11,7 @@ from rich.console import Console
 from rich.table import Table
 
 from benchmark.downloader import download_all_videos
-from benchmark.encoder import run_full_benchmark
+from benchmark.encoder import run_full_benchmark, verify_encoders
 from benchmark.presets import CODEC_PRESETS, VIDEO_SOURCES
 from benchmark.probe import probe_video
 from benchmark.reporter import generate_report, save_report
@@ -77,6 +77,17 @@ def run(
             print(f"[red]Invalid codec(s): {', '.join(invalid)}[/]")
             print(f"Available: {', '.join(CODEC_PRESETS.keys())}")
             raise typer.Exit(1)
+
+    # Verify ffmpeg encoders are available
+    print("[yellow]Checking ffmpeg encoders...[/]")
+    missing = verify_encoders(selected_codecs)
+    if missing:
+        print(f"[red]Missing ffmpeg encoders: {', '.join(missing)}[/]")
+        print("[yellow]Your ffmpeg build does not include the required encoders.[/]")
+        print("[yellow]For full codec support, use a build with: libx264, libx265, libvpx-vp9, libsvtav1[/]")
+        raise typer.Exit(1)
+    print("  [green]All required encoders available[/]")
+    print()
 
     # Download videos
     print("[yellow]Checking video assets...[/]")

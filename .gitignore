@@ -30,6 +30,7 @@ cli/build/*.pyz
 
 # CLI build cache
 .build_cache/
+cli/bin/
 
 # Node
 node_modules/

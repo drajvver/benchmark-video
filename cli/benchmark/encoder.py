@@ -52,6 +52,35 @@ def find_ffmpeg() -> str:
     )
 
 
+def verify_encoders(codecs: Optional[List[str]] = None) -> List[str]:
+    """Verify that required ffmpeg encoders are available.
+    
+    Returns a list of missing encoder names. Empty list means all OK.
+    """
+    from benchmark.presets import CODEC_PRESETS
+    
+    ffmpeg_path = find_ffmpeg()
+    selected = {k: v for k, v in CODEC_PRESETS.items() if not codecs or k in codecs}
+    
+    try:
+        result = subprocess.run(
+            [ffmpeg_path, "-encoders"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        encoders_output = result.stdout
+    except Exception:
+        return [p.encoder for p in selected.values()]
+    
+    missing = []
+    for key, preset in selected.items():
+        if preset.encoder not in encoders_output:
+            missing.append(preset.encoder)
+    
+    return missing
+
+
 def parse_ffmpeg_progress(line: str) -> Optional[float]:
     """Extract current time from ffmpeg stderr progress line."""
     # Look for time=HH:MM:SS.ms or time=SS.ms

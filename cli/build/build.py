@@ -17,20 +17,20 @@ from urllib.request import urlopen
 REPO_ROOT = Path(__file__).parent.parent.resolve()
 BIN_DIR = REPO_ROOT / "bin"
 
-# Static ffmpeg download URLs
+# Static ffmpeg download URLs (BtbN = full codecs including SVT-AV1)
 FFMPEG_DOWNLOADS = {
     "linux-x64": {
-        "url": "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz",
+        "url": "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz",
         "archive": "tar.xz",
         "extract": "tar",
-        "strip": 1,
+        "strip": 0,
         "binaries": ["ffmpeg", "ffprobe"],
     },
     "linux-arm64": {
-        "url": "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-arm64-static.tar.xz",
+        "url": "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linuxarm64-gpl.tar.xz",
         "archive": "tar.xz",
         "extract": "tar",
-        "strip": 1,
+        "strip": 0,
         "binaries": ["ffmpeg", "ffprobe"],
     },
     "macos-x64": {
@@ -38,24 +38,30 @@ FFMPEG_DOWNLOADS = {
         "archive": "zip",
         "extract": "zip",
         "strip": 0,
-        "binaries": ["ffmpeg"],
+        "binaries": ["ffmpeg", "ffprobe"],
+        "extra_urls": {
+            "ffprobe": "https://evermeet.cx/ffmpeg/getrelease/ffprobe/zip",
+        },
     },
     "macos-arm64": {
         "url": "https://evermeet.cx/ffmpeg/getrelease/ffmpeg/zip",
         "archive": "zip",
         "extract": "zip",
         "strip": 0,
-        "binaries": ["ffmpeg"],
+        "binaries": ["ffmpeg", "ffprobe"],
+        "extra_urls": {
+            "ffprobe": "https://evermeet.cx/ffmpeg/getrelease/ffprobe/zip",
+        },
     },
     "windows-x64": {
-        "url": "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip",
+        "url": "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip",
         "archive": "zip",
         "extract": "zip",
         "strip": 0,
         "binaries": ["ffmpeg.exe", "ffprobe.exe"],
     },
     "windows-arm64": {
-        "url": "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip",
+        "url": "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip",
         "archive": "zip",
         "extract": "zip",
         "strip": 0,
@@ -100,15 +106,12 @@ def download_file(url: str, dest: Path) -> None:
     print()
 
 
-def extract_archive(archive: Path, dest: Path, method: str, strip: int = 0) -> None:
+def extract_archive(archive: Path, dest: Path, method: str) -> None:
     """Extract an archive."""
     print(f"Extracting {archive.name}...")
     dest.mkdir(parents=True, exist_ok=True)
     if method == "tar":
-        args = ["tar", "-xf", str(archive), "-C", str(dest)]
-        if strip:
-            args.append(f"--strip-components={strip}")
-        subprocess.run(args, check=True)
+        subprocess.run(["tar", "-xf", str(archive), "-C", str(dest)], check=True)
     elif method == "zip":
         with zipfile.ZipFile(archive, "r") as z:
             z.extractall(dest)
@@ -146,9 +149,24 @@ def download_ffmpeg(target: str) -> None:
     extract_dir = cache_dir / f"ffmpeg-{target}"
     if extract_dir.exists():
         shutil.rmtree(extract_dir)
-    extract_archive(archive_path, extract_dir, info["extract"], info.get("strip", 0))
+    extract_archive(archive_path, extract_dir, info["extract"])
 
     binaries = find_files(extract_dir, info["binaries"])
+
+    # Download extra binaries (e.g., ffprobe from separate URL on macOS)
+    for extra_name, extra_url in info.get("extra_urls", {}).items():
+        if extra_name in binaries:
+            continue
+        extra_archive = cache_dir / f"ffmpeg-{target}-{extra_name}.{info['archive']}"
+        if not extra_archive.exists():
+            download_file(extra_url, extra_archive)
+        extra_extract = cache_dir / f"ffmpeg-{target}-{extra_name}"
+        if extra_extract.exists():
+            shutil.rmtree(extra_extract)
+        extract_archive(extra_archive, extra_extract, info["extract"])
+        extra_found = find_files(extra_extract, [extra_name])
+        binaries.update(extra_found)
+
     missing = set(info["binaries"]) - set(binaries.keys())
     if missing:
         raise FileNotFoundError(f"Could not find binaries: {missing}")
@@ -196,6 +214,7 @@ def build_binary(target: str, onefile: bool = True) -> None:
         cmd.extend(["--add-data", f"bin{separator}bin"])
     if (REPO_ROOT / "assets").exists():
         cmd.extend(["--add-data", f"assets{separator}assets"])
+
     cmd.append(str(REPO_ROOT / "benchmark" / "main.py"))
 
     env = os.environ.copy()
