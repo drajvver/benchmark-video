@@ -1,0 +1,28 @@
+# Single-container deployment.
+# FastAPI backend serves both the API and the React frontend static files.
+# Ideal for serverless/container platforms (bunny.net, Fly.io, Railway, etc.)
+# where you want just one container to deploy.
+#
+# Database must be external (Supabase, Neon, etc.) — no Postgres in this stack.
+#
+# Usage:
+#   1. cp .env.deploy.example .env
+#   2. Edit .env with your DATABASE_URL and SECRET_KEY
+#   3. docker compose -f docker-compose.single.yml up -d --build
+
+services:
+  app:
+    build:
+      context: ./web
+      dockerfile: Dockerfile.single
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
+      CORS_ORIGINS: ${CORS_ORIGINS:-["*"]}
+    ports:
+      - "80:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5

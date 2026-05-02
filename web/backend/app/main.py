@@ -1,7 +1,10 @@
 """FastAPI application entry point."""
 
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.staticfiles import StaticFiles
 
 from app.core.config import settings
 from app.core.database import create_db_and_tables
@@ -11,14 +14,12 @@ app = FastAPI(
     title="Video Benchmark API",
     description="API for video encoding benchmark results",
     version="1.0.0",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    openapi_url="/api/openapi.json",
 )
 
 # CORS
-# When wildcard "*" is used with allow_credentials=True, Starlette's default
-# behaviour is buggy: it returns "Access-Control-Allow-Origin: *" for simple
-# requests that carry an Authorization header (not a cookie). Browsers reject
-# this. Using allow_origin_regex=".*" instead forces Starlette to echo back
-# the actual origin, which works correctly with credentials.
 if "*" in settings.CORS_ORIGINS:
     app.add_middleware(
         CORSMiddleware,
@@ -37,7 +38,7 @@ else:
         allow_headers=["*"],
     )
 
-# Include routers
+# API routers
 app.include_router(results.router, prefix=settings.API_PREFIX)
 app.include_router(leaderboard.router, prefix=settings.API_PREFIX)
 
@@ -52,3 +53,13 @@ def on_startup():
 def health_check():
     """Health check endpoint."""
     return {"status": "ok"}
+
+
+# Serve React frontend static files (only if they exist)
+static_dir = Path(__file__).parent.parent / "static"
+if static_dir.exists():
+    app.mount(
+        "/",
+        StaticFiles(directory=str(static_dir), html=True),
+        name="static",
+    )
