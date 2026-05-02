@@ -1,0 +1,33 @@
+# Deploy using pre-built images from GitHub Container Registry.
+# No local build required — just set your env vars and run.
+#
+# Usage:
+#   1. cp .env.deploy.example .env
+#   2. Edit .env with your DATABASE_URL and SECRET_KEY
+#   3. docker compose -f docker-compose.ghcr.yml up -d
+#
+# Images are built automatically on every push to main.
+# Pull latest: docker compose -f docker-compose.ghcr.yml pull
+
+services:
+  backend:
+    image: ghcr.io/drajvver/benchmark-video-backend:latest
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
+      CORS_ORIGINS: ${CORS_ORIGINS:-["*"]}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  frontend:
+    image: ghcr.io/drajvver/benchmark-video-frontend:latest
+    environment:
+      API_URL: ${API_URL:-/api/v1}
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy

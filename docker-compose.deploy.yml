@@ -1,0 +1,38 @@
+# Deploy the web stack with an external database (e.g., Supabase, Neon, AWS RDS).
+# The database is NOT managed by this compose file — you provide a DATABASE_URL.
+#
+# Quick start:
+#   1. Create a .env file (see .env.deploy.example)
+#   2. docker compose -f docker-compose.deploy.yml up -d
+#   3. Open http://localhost (or your server's IP)
+#
+# For Supabase free tier:
+#   DATABASE_URL=postgresql://postgres:PASSWORD@db.PROJECT_REF.supabase.co:5432/postgres?sslmode=require
+
+services:
+  backend:
+    build: ./web/backend
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
+      CORS_ORIGINS: ${CORS_ORIGINS:-["*"]}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # If you want to expose the backend directly (e.g., for separate frontend hosting):
+    # ports:
+    #   - "8000:8000"
+
+  frontend:
+    build: ./web/frontend
+    environment:
+      # Override where the frontend calls the API. Default /api/v1 assumes same-origin.
+      # Set this if you host frontend separately from backend (e.g., on a CDN).
+      API_URL: ${API_URL:-/api/v1}
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
