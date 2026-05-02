@@ -83,28 +83,7 @@ jobs:
       - name: Build with PyInstaller
         run: |
           cd cli
-          python -m PyInstaller `
-            --name video-benchmark `
-            --onefile `
-            --clean `
-            --noconfirm `
-            --add-data "bin${{ runner.os == 'Windows' && ';' || ':' }}bin" `
-            --add-data "assets${{ runner.os == 'Windows' && ';' || ':' }}assets" `
-            benchmark/main.py
-        shell: pwsh
-
-      - name: Package (Unix)
-        if: runner.os != 'Windows'
-        run: |
-          cd cli/dist
-          chmod +x video-benchmark
-          zip video-benchmark-${{ matrix.target }}.zip video-benchmark
-
-      - name: Package (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          cd cli/dist
-          Compress-Archive -Path video-benchmark.exe -DestinationPath video-benchmark-${{ matrix.target }}.zip
+          python build/build.py --target ${{ matrix.target }} --package
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

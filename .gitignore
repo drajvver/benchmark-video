@@ -15,7 +15,6 @@ ENV/
 env/
 
 # Build artifacts
-build/
 dist/
 *.egg-info/
 .eggs/
@@ -24,6 +23,10 @@ dist/
 # PyInstaller
 *.manifest
 *.spec
+cli/build/video-benchmark/
+cli/build/*.toc
+cli/build/*.pkg
+cli/build/*.pyz
 
 # CLI build cache
 .build_cache/
