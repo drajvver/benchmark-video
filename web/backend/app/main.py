@@ -14,13 +14,28 @@ app = FastAPI(
 )
 
 # CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# When wildcard "*" is used with allow_credentials=True, Starlette's default
+# behaviour is buggy: it returns "Access-Control-Allow-Origin: *" for simple
+# requests that carry an Authorization header (not a cookie). Browsers reject
+# this. Using allow_origin_regex=".*" instead forces Starlette to echo back
+# the actual origin, which works correctly with credentials.
+if "*" in settings.CORS_ORIGINS:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[],
+        allow_origin_regex=".*",
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+else:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.CORS_ORIGINS,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 # Include routers
 app.include_router(results.router, prefix=settings.API_PREFIX)
