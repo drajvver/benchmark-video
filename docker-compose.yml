@@ -1,0 +1,34 @@
+services:
+  db:
+    image: postgres:16-alpine
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: benchmark
+      POSTGRES_USER: benchmark
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-benchmark}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U benchmark -d benchmark"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./web/backend
+    environment:
+      DATABASE_URL: postgresql://benchmark:${DB_PASSWORD:-benchmark}@db/benchmark
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
+      CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost"]}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build: ./web/frontend
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+
+volumes:
+  pgdata:

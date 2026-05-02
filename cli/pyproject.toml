@@ -1,0 +1,42 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "video-benchmark"
+version = "1.0.0"
+description = "Universal video encoding benchmark tool"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Video Benchmark Team"}
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "typer>=0.12.0",
+    "rich>=13.0.0",
+    "psutil>=5.9.0",
+    "py-cpuinfo>=9.0.0",
+    "requests>=2.31.0",
+    "pyyaml>=6.0.1",
+]
+
+[project.scripts]
+video-benchmark = "benchmark.main:app"
+
+[project.optional-dependencies]
+build = ["pyinstaller>=6.0"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["benchmark"]
