@@ -1,12 +1,15 @@
 """Results API router."""
 
+import hashlib
+import hmac
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Header, Query
+from fastapi import APIRouter, Depends, HTTPException, Header, Query, Request
 from sqlalchemy.orm import selectinload
 from sqlmodel import Session, select, func
 
+from app.core.config import settings
 from app.core.database import get_session
 from app.core.security import create_token, verify_token
 from app.models import (
@@ -29,9 +32,10 @@ def get_token():
 
 
 @router.post("", status_code=201)
-def submit_result(
-    submission: ResultSubmission,
+async def submit_result(
+    request: Request,
     authorization: Optional[str] = Header(None),
+    x_benchmark_signature: Optional[str] = Header(None),
     session: Session = Depends(get_session),
 ):
     """Submit a benchmark result."""
@@ -41,6 +45,16 @@ def submit_result(
     token = authorization[7:]
     if not verify_token(token):
         raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    # Verify HMAC signature
+    raw_body = await request.body()
+    expected = hmac.new(
+        settings.HMAC_SECRET.encode(), raw_body, hashlib.sha256
+    ).hexdigest()
+    if not x_benchmark_signature or not hmac.compare_digest(expected, x_benchmark_signature):
+        raise HTTPException(status_code=403, detail="Invalid signature")
+
+    submission = ResultSubmission.model_validate_json(raw_body)
     
     # Check for duplicate run_id
     existing = session.exec(

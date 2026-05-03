@@ -40,9 +40,6 @@ def run(
     upload: bool = typer.Option(
         True, "--upload/--no-upload", help="Upload results to server after running"
     ),
-    server: str = typer.Option(
-        "http://localhost:8000", "--server", "-s", help="Server base URL"
-    ),
     force_download: bool = typer.Option(
         False, "--force-download", help="Re-download videos even if cached"
     ),
@@ -146,7 +143,7 @@ def run(
         save_report(report, output)
         print(f"[green]Report saved to {output}[/]")
     elif upload:
-        success = upload_result(report, base_url=server)
+        success = upload_result(report)
         if not success:
             fallback = Path("benchmark_result.json")
             save_report(report, fallback)
@@ -158,15 +155,12 @@ def run(
 @app.command()
 def upload(
     path: Path = typer.Argument(..., help="Path to benchmark result JSON file"),
-    server: str = typer.Option(
-        "http://localhost:8000", "--server", "-s", help="Server base URL"
-    ),
 ) -> None:
     """Upload a previously saved benchmark result."""
     if not path.exists():
         print(f"[red]File not found: {path}[/]")
         raise typer.Exit(1)
-    success = upload_file(path, base_url=server)
+    success = upload_file(path)
     if not success:
         raise typer.Exit(1)
 
