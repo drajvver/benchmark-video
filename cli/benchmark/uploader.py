@@ -1,42 +1,50 @@
 """Result upload to the benchmark server."""
 
+import hashlib
+import hmac
+import json
 from pathlib import Path
 from typing import Optional
 
 import requests
 
+_SERVER = "https://mc-6x0zte0wcd.bunny.run"
+_HMAC_SECRET = "1ce4ece2b7cff2fa917edb12ea5febc49bcd4345892ae35b84f145609b1e55be"
 
-def get_token(base_url: str = "http://localhost:8000") -> Optional[str]:
+
+def _sign(payload_bytes: bytes) -> str:
+    return hmac.new(_HMAC_SECRET.encode(), payload_bytes, hashlib.sha256).hexdigest()
+
+
+def get_token() -> Optional[str]:
     """Request an upload token from the server."""
     try:
-        resp = requests.get(
-            f"{base_url}/api/v1/token",
-            timeout=10,
-        )
+        resp = requests.get(f"{_SERVER}/api/v1/token", timeout=10)
         resp.raise_for_status()
-        data = resp.json()
-        return data.get("token")
+        return resp.json().get("token")
     except Exception:
         return None
 
 
-def upload_result(
-    report: dict,
-    base_url: str = "http://localhost:8000",
-    token: Optional[str] = None,
-) -> bool:
+def upload_result(report: dict, token: Optional[str] = None) -> bool:
     """Upload a benchmark result to the server."""
     if not token:
-        token = get_token(base_url)
+        token = get_token()
     if not token:
         print("[red]Failed to obtain upload token.[/]")
         return False
-    
+
+    payload_bytes = json.dumps(report, separators=(",", ":"), sort_keys=True).encode()
+
     try:
         resp = requests.post(
-            f"{base_url}/api/v1/results",
-            json=report,
-            headers={"Authorization": f"Bearer {token}"},
+            f"{_SERVER}/api/v1/results",
+            data=payload_bytes,
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+                "X-Benchmark-Signature": _sign(payload_bytes),
+            },
             timeout=30,
         )
         resp.raise_for_status()
@@ -50,12 +58,8 @@ def upload_result(
         return False
 
 
-def upload_file(
-    path: Path,
-    base_url: str = "http://localhost:8000",
-) -> bool:
+def upload_file(path: Path) -> bool:
     """Upload a result from a JSON file."""
-    import json
     with open(path) as f:
         report = json.load(f)
-    return upload_result(report, base_url)
+    return upload_result(report)
